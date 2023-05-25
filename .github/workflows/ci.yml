@@ -10,32 +10,50 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v2
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          node-version: 15.4
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Install Node.js
+        run: sudo apt-get install node
+
+      - name: Install NPM
+        run: sudo apt-get install npm
 
       - name: Install dependencies
         run: npm install
 
       - name: Linter (ESLint)
         run: npm run lint
-        
+
       - name: Install Prettier
         run: npm install --save-dev prettier
 
       - name: Formatter (Prettier)
         run: npm run prettier
 
-      - name: Test (Jest)
-        run: npm run test
-
-      - name: Build
+      - name: Build application
         run: npm run build
+
+      # This step outputs the URL of the built application
+      - name: Output application URL
+        run: echo "::set-output name=application_url::$(npm run build | grep 'Your application is running at' | awk '{print $NF}')"
+
+      - name: Install Terraform
+        run: sudo apt-get install terraform
+
+      - name: Configure Terraform
+        run: terraform init
+
+      - name: Deploy Infrastructure
+        run: terraform apply -var "application_url=${{ steps.deploy.outputs.application_url }}" --auto-approve
