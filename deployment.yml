@@ -1,0 +1,54 @@
+name: Deploy Infrastructure
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::123456789100:role/my-github-actions-role
+          aws-region: us-east-1
+
+      - name: Install Node.js
+        run: sudo apt-get install node
+
+      - name: Install NPM
+        run: sudo apt-get install npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Linter (ESLint)
+        run: npm run lint
+
+      - name: Install Prettier
+        run: npm install --save-dev prettier
+
+      - name: Formatter (Prettier)
+        run: npm run prettier
+
+      - name: Build application
+        run: npm run build
+
+      # This step outputs the URL of the built application
+      - name: Output application URL
+        run: echo "::set-output name=application_url::$(npm run build | grep 'Your application is running at' | awk '{print $NF}')"
+
+      - name: Install Terraform
+        run: sudo apt-get install terraform
+
+      - name: Configure Terraform
+        run: terraform init
+
+      - name: Deploy Infrastructure
+        run: terraform apply -var "application_url=${{ steps.deploy.outputs.application_url }}"
